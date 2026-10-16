@@ -1,0 +1,38 @@
+# Publishes docs/ to GitHub Pages.
+#
+# This replaces the GitHub-generated "pages-build-deployment" pipeline, which
+# cannot be cancelled or disabled when it wedges. A run defined here is an
+# ordinary workflow run: cancellable from the UI, and superseded automatically
+# by the next push.
+
+name: Deploy Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A newer push wins outright, rather than queueing behind a stuck predecessor.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
