@@ -2607,12 +2607,11 @@ const label = e => (monName(e) || e.id) + (monName(e) ? '' : ' (unnamed)');
 
 // TWO DROPDOWNS, SPECIES TYPE THEN MONSTER, as in the MHGU viewer (Raven, 2026-09-22: "can you find each
 // monster's species so we can sort them like the GU app"). GU groups by the classes of its
-// monster-classes.json; 3U ships no such file, so the groups are the game's own: every monster's species
-// off the Monster List table in the executable (monsters.json `species`, see its _about), Large and Small
-// kept apart by the enemy record's own flag. The species come up in the ROM's order, which is the order
-// the Monster List itself numbers them, and a monster keeps its id order inside its species, so a monster
-// sits next to its variants. Giggi Sac is on no list and no species -- it comes last, under Unlisted,
-// outside both sections, because its large / small flag is the only thing saying which it would be.
+// monster-classes.json; for MHFU the classes and their order are the MHFU LookUp app's (monsters.json
+// `species`, see its _about). Large and Small are kept apart by monsters.json `small`, build_viewer.py's
+// SMALL set (the MHFU Hunting Log's): every Large section comes before every Small one, and a class with
+// both kinds (Bird Wyvern: Velocidrome and Velociprey) is listed under each. A monster keeps its id order
+// inside its class. A monster with no class would come last, under Unlisted, outside both sections.
 // The name filter searches every monster.
 const MONSTERS_BY_ID = MON.monsters.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
 const SPECIES_ORDER = [...new Set(MONSTERS_BY_ID.filter(e => e.speciesIdx !== null && e.speciesIdx !== undefined)

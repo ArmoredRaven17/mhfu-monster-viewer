@@ -51,6 +51,16 @@ NAMES = {
     78: 'Yian Garuga (One Eyed)', 50: 'Ashen Lao-Shan Lung', 86: 'Plum Daimyo Hermitaur',
     87: 'Terra Shogun Ceanataur',
 }
+# The small monsters, by species: the page's Small section, everything else is Large. Not read from the
+# game (its large / small flag isn't decoded for MHFU); the same set as the MHFU Hunting Log's SMALL
+# (scripts/build_data.py there), so the two apps agree. The bosses of a small kind -- King Shakalaka (79),
+# Vespoid Queen (80), Bulldrome (68), the -dromes, Daimyo and Shogun -- are Large.
+SMALL = {
+    9: 'Felyne', 23: 'Melynx', 57: 'Shakalaka', 19: 'Vespoid', 24: 'Hornetaur', 56: 'Great Thunderbug',
+    69: 'Anteka', 70: 'Popo', 3: 'Kelbi', 4: 'Mosswine', 12: 'Aptonoth', 25: 'Apceros',
+    35: 'Giaprey', 16: 'Velociprey', 13: 'Genprey', 30: 'Ioprey', 63: 'Remobra', 34: 'Cephalos',
+    62: 'Conga', 61: 'Blango', 5: 'Bullfango', 66: 'Hermitaur', 73: 'Ceanataur',
+}
 CLASS_ORDER = ['Lynian', 'Neopteron', 'Herbivore', 'Bird Wyvern', 'Flying Wyvern', 'Piscine Wyvern',
                'Carapaceon', 'Pelagus', 'Elder Dragon']
 STATE = ['opaque', 'blend', 'add', 'revsub']
@@ -265,8 +275,7 @@ def main():
         tris = sum(m['tris'] for m in model['meshes'])
         controls = part_controls(s, vis_all.get(str(s), {}), model.get('tip'))
         monsters.append({
-            'id': em, 'em': em, 'file': fid, 'small': klass[sl] in ('Lynian', 'Neopteron', 'Herbivore') or
-            len(model['bones']) < 30 and klass[sl] != 'Elder Dragon',
+            'id': em, 'em': em, 'file': fid, 'small': s in SMALL,
             'name': name, 'nameRom': names[s], 'icon': icon, 'model': em, 'sharesModelOf': None,
             'sizeBase': 1.0, 'groups': None, 'partTable': None, 'partCode': None, 'parts': [],
             'lists': [{'id': em + ':0', 'stem': em, 'file': pose_rel, 'shared': False, 'label': 'Actions',
