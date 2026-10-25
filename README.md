@@ -4,8 +4,8 @@ A fan-made 3D viewer for the monsters of Monster Hunter Freedom Unite (PSP). Pic
 watch its own animations, with the game's own models and textures.
 
 **Basic version.** Forked from the MH4U Monster Viewer: monster rendering and animation, and the
-MHGU viewers' Lighting, Camera and Effects panels. The parts table (breaks, tail cut), sizes and hit
-zones are not decoded yet.
+MHGU viewers' Lighting, Camera, Effects and Hit Zones panels. The parts table (stagger and break
+values) and sizes are not decoded yet.
 
 ## What it does
 
@@ -24,6 +24,12 @@ zones are not decoded yet.
   unnamed ("Part 1", "Part 2" ...) until they are named by hand.
 - Overlay meshes (Tigrex's rage layer, glowing eyes) follow the same rules, so they show when their
   state is switched on. Attack and movement effects are not shown yet.
+- **Hit zones from the game's own tables**: each monster's damage table (cut, impact, shot, the five
+  elements and stun) and its hit capsules, the spheres and capsules on the skeleton the game tests a hit
+  against. The Hit Zones panel is the MHGU viewer's: a heat map per damage type, the chart, and a zone's
+  capsules drawn on the moving monster. Monsters with more than one table (rage, broken parts and the like)
+  list them under Damage Table; which state picks each one is not decoded yet, so they read "State 1",
+  "State 2". Zones are "Slot N" until they are named by hand.
 
 ## Data pipeline
 
@@ -31,6 +37,8 @@ zones are not decoded yet.
     python C:\MHFU-Extract\tools\databin.py      # decrypt DATA.BIN -> C:\MHFU-Extract\data\fNNNN.bin
     python C:\MHFU-Extract\tools\convert.py      # monster PACs -> C:\MHFU-Extract\conv\monster\fNNNN
     python scripts/build_viewer.py               # conv -> docs/
+    python C:\MHFU-Extract\tools\hitzones.py      # damage tables + capsules -> conv\monster\hitzones.json
+    python scripts/build_hitzones.py             # -> docs/hitzones.json, docs/hitzones/*.bin
 
 The script headers are the long reference; `C:\MHFU-Extract\CLAUDE.md` maps the files.
 

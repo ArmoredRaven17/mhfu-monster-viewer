@@ -36,9 +36,12 @@ written from; none of their code is included here.
   Where the game calls a variant by its base monster's name (the three Fatalis, the two Kushala
   Daora, the two Yian Garuga), or abbreviates it, the MHFU LookUp app's name is used.
 - Monster **classes** and the **list order** are the MHFU LookUp app's (`monster_order.json`).
-- Everything else — models, textures, skeletons, animations — is read out of the game's own files.
-  What is not decoded yet (shading, the parts table, hit zones, sizes) is left out rather than
-  approximated; `docs/monsters.json` `_about` says what is ROM-sourced.
+- Everything else — models, textures, skeletons, animations, hit zones and hit capsules — is read
+  out of the game's own files. What is not decoded yet (shading, the parts table, sizes) is left out
+  rather than approximated; `docs/monsters.json` `_about` says what is ROM-sourced.
+- The hit-zone **column names** (which byte is cut, impact, ... stun) follow the MHFU LookUp app's
+  table order, which that app checked against an independent table for all 83 monsters; the values
+  and the order of the bytes are the game's.
 
 ## Assets
 

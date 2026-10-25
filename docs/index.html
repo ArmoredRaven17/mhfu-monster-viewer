@@ -578,7 +578,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <!-- Hit zones is its own panel (Raven, 2026-09-05: "Hitzones, this will be a new panel",
            "the idea will be to display the Hitzone chart along with the Heatmaps"). The chart and
            the heat map are one control: a column header both selects the type and paints it. -->
-      <section class="panel" id="hitZonesPanel" data-open="false" hidden>
+      <section class="panel" id="hitZonesPanel" data-open="false">
         <button class="panel-head">Hit Zones <span class="chev">&#9662;</span></button>
         <div class="panel-body">
           <div class="field" id="monHeatRow" hidden>
@@ -589,7 +589,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
               <option value="shot">Shot</option><option value="fire">Fire</option>
               <option value="water">Water</option><option value="ice">Ice</option>
               <option value="thunder">Thunder</option><option value="dragon">Dragon</option>
-              <option value="stun">Stun</option><option value="exhaust">Exhaust</option>
+              <option value="stun">Stun</option>
             </select>
           </div>
           <!-- A ZONE'S CAPSULES, picked here as well as by a row name in the chart. Raven, 2026-09-17: "Add a drop down
@@ -612,7 +612,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
             <select id="monHeatTable"></select>
           </div>
           <label class="chk" id="monZoneShowRow"><input type="checkbox" id="monZoneShow" checked>Show the Chart over the Render</label>
-          <!-- with no hit-zone data (MHFU's are not decoded yet) this note is all the panel shows; see applyHeat() -->
+          <!-- a monster with no hit-zone record gets this note instead of the chart; see applyHeat() -->
           <p class="hint" id="monZoneNote" hidden></p>
         </div>
       </section>
@@ -735,13 +735,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
            Zones panel"). Its toggle is #monZoneShow, in that panel. -->
       <div id="zonePanel" hidden>
         <div id="zoneHead"><span id="zoneTitle">Hit Zones</span><button id="zoneClose" title="Hide the chart">&times;</button></div>
-        <!-- Ten damage columns in one grid was more than the eye groups on its own, so they are split into
-             Raw (3 types), Elemental (5) and Stun/Exhaust (2), with the part record's Stagger and Break in a
-             pane of their own (the MHGU viewer's Extracts pane, less its kinsect extract column). -->
+        <!-- The damage columns are split into Raw (3 types), Elemental (5) and Stun (MHFU has no Exhaust column:
+             a row is nine values), with the part record's Stagger and Break in a pane of their own (the MHGU
+             viewer's Extracts pane, less its kinsect extract column; MHFU's part records are not decoded, so it
+             stays disabled). -->
         <div id="zoneTabRow"><select id="zoneTabSel" aria-label="Hit zone table">
           <option value="raw">Raw</option>
           <option value="elem">Elemental</option>
-          <option value="status">Stun/Exhaust</option>
+          <option value="status">Stun</option>
           <option value="extracts">Extracts</option>
         </select></div>
         <div id="monZoneWrap"><table id="monRawChart"    class="zchart" data-pane="raw"></table>
@@ -829,7 +830,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <p>Monster Hunter Freedom Unite and all of its models, textures, animations and data tables are &copy; CAPCOM CO., LTD. All rights reserved. Every asset here was extracted from a personally owned copy of the game (the US release) and is shown for reference only.</p>
 
     <h3>What you are looking at</h3>
-    <p>Each monster is one file in the game: its skeleton, model, textures and animations. The clips are the game's action entries, numbered as the game stores them (the data has no names for them), and play at the game's own 30 frames a second. Some monsters have overlay meshes the game only shows in certain states (rage, glowing parts); the Effects switch shows them. Monster names are the game's own; where the game calls a variant by its base monster's name, the MHFU LookUp app's name is used.</p>
+    <p>Each monster is one file in the game: its skeleton, model, textures and animations. The clips are the game's action entries, numbered as the game stores them (the data has no names for them), and play at the game's own 30 frames a second. Some monsters have overlay meshes the game only shows in certain states (rage, glowing parts); the Effects switch shows them. The hit zones are the game's own damage tables and hit capsules; the names of their columns follow the MHFU LookUp app's table. Monster names are the game's own; where the game calls a variant by its base monster's name, the MHFU LookUp app's name is used.</p>
 
     <h3>File formats</h3>
     <ul class="app-links">
@@ -1148,9 +1149,9 @@ if (document.fonts) document.fonts.load('1em MHFU').then(() => {
 // The MHFU Monster Viewer. One figure: a monster from its own model file in the game (DATA.BIN, one PAC
 // per species), on its own skeleton, with its action entries as clips. Forked from the MH4U Monster Viewer
 // (itself from the MH3U one, the MHGU one cut down); the PSP files are converted into that viewer's glTF
-// contract by the converter in C:/MHFU-Extract/tools. MHFU's shading, parts table and hit zones are not decoded yet, so the model is
-// drawn under generic lighting (the MHGU viewers' Lighting, Camera and Effects panels), the Parts panel
-// only lists the severed pieces, and the Hit Zones panel waits for an optional hitzones.json.
+// contract by the converter in C:/MHFU-Extract/tools. MHFU's shading is not decoded, so the model is drawn
+// under generic lighting (the MHGU viewers' Lighting, Camera and Effects panels). The Hit Zones panel is the
+// MHGU viewer's, reading hitzones.json (scripts/build_hitzones.py, from the game's own tables).
 //
 // The render core (render/stage.js, assets.js, skeleton.js, material.js, materials-db.js, pose.js,
 // grid.js) came over from the MHGU viewer and is this app's own now. render/monster.js is the model,
@@ -1194,8 +1195,8 @@ if (CLEAN){ document.querySelector('.sidebar').style.display = 'none';
 
 const MON = await loadJson('monsters.json');
 // Hit zones: every drawn vertex carries the slot of the nearest hit-zone capsule, and that slot indexes the
-// monster's damage table. OPTIONAL, and absent for now: MHFU's hit zones are not decoded yet, and the Hit
-// Zones panel says so (applyHeat). The file follows the MHGU viewer's contract.
+// monster's damage table. The file follows the MHGU viewer's contract; scripts/build_hitzones.py writes it from
+// C:/MHFU-Extract/tools/hitzones.py, which reads the game's own tables. Optional: without it the panel says so.
 const HITZONES = await loadJson('hitzones.json').catch(() => ({ monsters: {} }));
 // Hit zone slot names given on review, per monster and slot (zone-review.json, optional) -- the only slot
 // names the chart shows; see zoneNames().
@@ -3195,15 +3196,20 @@ function applyUndef(){
 // state.heat, the dropdown, the chart's selected column, zoneShow -- is left as it is, so reopening the
 // panel brings the same map and chart back.
 function hitZonesOpen(){ return document.getElementById('hitZonesPanel').dataset.open === 'true'; }
-// The damage table on screen: one of the file's blocks, "Table 0 / Table 1", picked by the Damage Table dropdown.
+// The damage table on screen, picked by the Damage Table dropdown (the MH4U viewer's version of GU's). MHFU: one
+// table per entry of the species' table list, in the game's order -- table k is the one the hit code reads while
+// entity+0x481 = k (scripts/build_hitzones.py). Named by `tableNames`, with what is known of the state in
+// `tableNotes` (the option's tooltip).
 function zoneTable(rec){
   const ti = Math.min(rec.tables.length - 1, Math.max(0, state.heatTable | 0));
-  return { rows: rec.tables[ti], names: rec.tables.map((_, i) => 'Table ' + i), index: ti,
-           label: rec.tables.length > 1 ? 'Table ' + ti : '' };
+  const names = rec.tables.map((_, i) => (rec.tableNames && rec.tableNames[i]) || 'Table ' + i);
+  return { rows: rec.tables[ti], names, notes: rec.tableNotes || [], index: ti,
+           label: rec.tables.length > 1 && ti > 0 ? names[ti] : '' };
 }
 async function applyHeat(){
   const e = entry();
   const rec = e && HITZONES.monsters && HITZONES.monsters[e.id];
+  if (state.heat === 'exhaust') state.heat = '';     // MHFU has no Exhaust column: a pick saved before it was dropped
   const note = document.getElementById('monZoneNote');
   document.getElementById('monHeatRow').hidden = !rec;
   // THE DROPDOWN LISTS TABLES, SO IT GOES WHEN THERE IS ONLY ONE. Set here as well as below so the previous
@@ -3212,7 +3218,7 @@ async function applyHeat(){
   heatTableRow.hidden = !rec || rec.tables.length < 2;
   if (!rec){
     // No hit zones for this monster: the panel says so rather than emptying itself out. With no
-    // hitzones.json at all -- MHFU today -- that line is all the panel shows.
+    // hitzones.json at all, that line is all the panel shows.
     buildZoneCapSel(null);
     for (const g of Object.values(mounted)) clearHeatmap(g);
     // every pane, or a stale table from the previous monster stays on its tab
@@ -3226,10 +3232,10 @@ async function applyHeat(){
     return;
   }
   note.hidden = true;
-  if (!zoneCache || zoneCache.id !== e.id){
+  if (!zoneCache || zoneCache.bin !== rec.bin){
     const res = await fetch(rec.bin);
     if (!res.ok) throw new Error('hit zones missing: ' + rec.bin + ' (' + res.status + ')');
-    zoneCache = { id: e.id, zones: parseZones(await res.arrayBuffer(), rec.prims) };
+    zoneCache = { id: e.id, bin: rec.bin, zones: parseZones(await res.arrayBuffer(), rec.prims) };
   }
   const zt = zoneTable(rec);
   const tsel = document.getElementById('monHeatTable');
@@ -3240,6 +3246,7 @@ async function applyHeat(){
     zt.names.forEach((n, i) => {
       const o = document.createElement('option');
       o.value = String(i); o.textContent = n;
+      if (zt.notes[i]) o.title = zt.notes[i];
       tsel.appendChild(o);
     });
     tsel.dataset.names = names;
@@ -3270,7 +3277,7 @@ async function applyHeat(){
 const ZONE_GROUPS = [
   { pane: 'raw',    id: 'monRawChart',    types: ['cut', 'impact', 'shot'] },
   { pane: 'elem',   id: 'monElemChart',   types: ['fire', 'water', 'ice', 'thunder', 'dragon'] },
-  { pane: 'status', id: 'monStatusChart', types: ['stun', 'exhaust'] },
+  { pane: 'status', id: 'monStatusChart', types: ['stun'] },
 ];
 // Parts down, the group's types across, on the same ramp the model uses. A column header both
 // selects the type and paints it, so the chart and the heat map stay one control.
@@ -3427,14 +3434,19 @@ document.getElementById('monZoneCol').onchange = e => { state.zoneColour = e.tar
 // An exact twin inside the picked row is simply drawn once rather than twice, and a PART-record pick keeps
 // everything. This does not choose a state: a shape goes only for being listed twice, never for the gates the game
 // checks when a hit lands.
-// A SHAPE NO COMMON ATTACK COUNTS IS NOT DRAWN, in either kind of pick. This is the MHGU decode of a capsule's flag
-// word (hitzones.json `capsuleFlags`): a word with any bit of 0x152 is skipped by the common attack types, and one
-// with bit 6 or 8 set and none of bits 0-4 by every type. A file without `capsuleFlags` draws every shape.
-const zoneNeverCounted = f => (f & 0x1f) === 0 && (f & 0x140) !== 0;
-const zoneSpecialOnly = f => (f & 0x152) !== 0 && !zoneNeverCounted(f);
+// A SHAPE NO COMMON ATTACK COUNTS IS NOT DRAWN, in either kind of pick. MHFU's capsule flag word (hitzones.json
+// `capsuleFlags`, bytes +8..+B of the game's capsule) is read by the attack loop (f0076 0x09C42A40..0x09C42BBC):
+// the `never` bits make no attack count it, the `special` bits leave it to particular attack types only, and the
+// `conditional` bits to a monster state (drawn, as GU draws its conditional shapes). The masks are the file's own
+// (_about), so the decode lives in one place: C:/MHFU-Extract/tools/hitzones.py FLAGS. A file without
+// `capsuleFlags` draws every shape.
+const ZONE_NEVER = (HITZONES._about && HITZONES._about.never) || 0;
+const ZONE_SPECIAL = (HITZONES._about && HITZONES._about.special) || 0;
+const zoneNeverCounted = f => (f & ZONE_NEVER) !== 0;
+const zoneSpecialOnly = f => (f & ZONE_SPECIAL) !== 0 && !zoneNeverCounted(f);
 function zoneShapesFor(rec, pick){
   const flags = rec.capsuleFlags || [];
-  const live = rec.capsules.filter((c, i) => ((flags[i] || 0) & 0x152) === 0);
+  const live = rec.capsules.filter((c, i) => ((flags[i] || 0) & (ZONE_NEVER | ZONE_SPECIAL)) === 0);
   const shapeKey = c => c.slice(2).join(',');
   const slotsOf = new Map();
   for (const c of live){

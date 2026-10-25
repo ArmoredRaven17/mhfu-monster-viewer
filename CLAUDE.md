@@ -44,9 +44,18 @@ The game files are read by `C:\MHFU-Extract\tools` (its CLAUDE.md maps DATA.BIN)
 - `SKIP` lists the dummies and duplicates left out; the README says what each is. Never put them on
   the page (leftover data belongs in notes).
 
-The 4U page's parts-table, hit-zone and Apex code is still in index.html; MHFU's data leaves it idle
-(`partTable` null, no `hitzones.json`; the Hit Zones panel is hidden -- an extra, not started).
-Comments marked "MH4U (inherited, unused by MHFU's data)" are about that code.
+- **Hit zones are read from MHFU's code** (`C:\MHFU-Extract\tools\hitzones.py`: the species record,
+  damage tables, capsules and flag bits, every field with the address the game reads it at; `--check`
+  runs the game's capsule routine over a save state). `scripts/build_hitzones.py` writes GU's
+  hitzones.json contract with GU's bake, as the 4U viewer's builder does, so the panel is GU's.
+  MHFU's own differences: nine columns (no exhaust), `capsuleFlags` are MHFU's bits (the masks ride in
+  `_about`, read by `zoneNeverCounted` / `zoneSpecialOnly`), and tables after the first are
+  "State k" (`TABLE_LABELS` for names) because which state sets entity+0x481 is not decoded. Zone and
+  table names are Raven's to give.
+
+The 4U page's parts-table and Apex code is still in index.html; MHFU's data leaves it idle
+(`partTable` null, no part records, so the Extracts pane stays disabled). Comments marked "MH4U
+(inherited, unused by MHFU's data)" are about that code.
 
 ## Conventions
 
