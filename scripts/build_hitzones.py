@@ -22,8 +22,10 @@ Monster Viewer's builder, so the page's Hit Zones panel -- GU's -- reads it:
   capsuleSever   the tail-cut mask of the 0x7D gate covering the capsule (0: none): it is not tested once the tail is cut.
   candidates for the bake: no NEVER, SPECIAL or CONDITIONAL bit (GU leaves conditional shapes out too), shape 0-1.
   tables / tableNames / tableNotes   one per table in the species' list, in the game's order: table k is the one the
-             hit code reads while entity+0x481 = k. Each class sets it in its own code (writers in hitzones.py); the
-             states are not decoded, so tables after the first are "State k" until named in TABLE_LABELS.
+             hit code reads while entity+0x481 = k. Each class sets it in its own code; TABLE_NOTES gives the
+             condition and the addresses for every table after the first (hitzones.py, TABLE STATES, has the
+             decode), and the build stops if one is missing. Names are "State k" until Raven names them in
+             TABLE_LABELS.
 The tenth column of GU's contract (exhaust) does not exist in MHFU: a row is nine values.
 """
 import collections, json, os, re, struct, sys
@@ -40,6 +42,64 @@ CT = {5120: ('b', 1), 5121: ('B', 1), 5122: ('h', 2), 5123: ('H', 2), 5125: ('I'
 NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
 # Names for the tables after the first, by (species, table index): Raven's to give.
 TABLE_LABELS = {}
+# What sets entity+0x481 to table k, by species then k: read from each class's code and replayed under
+# C:\MHFU-Extract\tools\mips.py over save state 0 (C:\MHFU-Extract\tools\hitzones.py, TABLE STATES). A part's break
+# count is entity+0x582 + 8*part, raised by 0x09AC7DFC each time the part's durability (+0x580 + 8*part) runs out;
+# break flags are entity+0x774 (0x09AD7808 reads one); actions are (+0x298, +0x299); rage is +0x638 & 0x20.
+_GRAVIOS = ('Once part 6\'s break count reaches %d: the part-break table at 0x09BCE9E0 (entry %d) sets it at '
+            '0x09AD4BEC, run by 0x09AC7A08 when a count rises. Nothing sets it back.')
+_TIGREX = ('While enraged (entity+0x638 & 0x20): the class update (em75, vtable slot 29) writes it every frame at '
+           '0x09D35688 / 0x09D35690.')
+_HORN = ('Once break flag 2 (entity+0x774 bit 2) is set: the class update (em75, vtable slot 29) writes it every frame '
+         'at %s. The class\'s part routine (vtable slot 56) raises the flag at %s when part %d\'s break count is 2 or '
+         'more and part %d takes a hit with hit bit %s (entity+0x3B0 + part, %s); it is not cleared after spawn.')
+_AURA = ('While the class\'s aura test passes (em54, vtable slot %d at %s): entity+0x7D2 non-zero, break flags 0 '
+         'and 2 clear, +0x4C4 and +0x454 at 0, +0x3CF not 4, not in action (4,12). The update (slot 29) then writes '
+         '1 and sets +0x635 = 2, the gate of the "only while entity+0x635" capsules (0x09D2B498 / 0x09D2B4CC), '
+         'else 0 (0x09D2B460..0x09D2B470), every frame.')
+_DAIMYO = ('In actions (3,4) and (3,25) (dispatched by 0x09B26610 and 0x09B24278), 0x09B22598 sets +0x634 = 10 and '
+           'writes %s every frame. Each action change sets it back to 0 (vtable slot 32, 0x09B26754).')
+_CONGA = ('From frame 40 of clip 0x51 to that clip\'s end, in actions (3,10), (3,30), (3,31) and (4,18) (dispatched '
+          'by 0x09B417E0): set as frame 40 passes (0x09B3940C, 0x09B3A7FC, 0x09B3D114), cleared when the clip ends '
+          'and the action moves to clip 0x52 (0x09B39448, 0x09B3A868, 0x09B3D150) or the action changes (vtable '
+          'slot 32, 0x09B30E30). Actions (3,30) and (3,31) also set +0x635 = 2 from frame 40 (0x09B3A820).')
+TABLE_NOTES = {
+    17: {1: _GRAVIOS % (2, 7)},                     # Gravios
+    47: {1: _GRAVIOS % (2, 7)},                     # Black Gravios: the table's species group is Gravios's
+    22: {1: _GRAVIOS % (1, 8)},                     # Basarios
+    75: {1: _TIGREX},                               # Tigrex
+    81: {1: _TIGREX},                               # Nargacuga
+    76: {1: _HORN % ('0x09D35638 / 0x09D35640', '0x09D3F570', 1, 1, '0x01',
+                     'set at 0x09C44BE4 from the hit routine\'s flag at sp+0x88, raised for attacks with +0x25 '
+                     'bit 0 at 0x09C43A94 and dropped at 0x09C43CC0')},                     # Akantor
+    88: {1: _HORN % ('0x09D35658 / 0x09D3565C', '0x09D3F628', 2, 2, '0x04',
+                     'set at 0x09C44C6C for attacks with +0x28 bit 4')},                   # Ukanlos
+    54: {1: _AURA % (20, '0x09D1F4E8')},            # Kushala Daora
+    60: {1: _AURA % (20, '0x09D1F4E8')},            # Rusted Kushala Daora
+    64: {1: _AURA % (21, '0x09D1F5A8')},            # Lunastra (slot 21 is the same code as 20)
+    65: {1: _AURA % (21, '0x09D1F5A8')},            # Teostra
+    59: {1: 'While it cloaks: the update (em59, vtable slot 29) writes slot 23 (0x09D1D9C0) == 1 at 0x09D25234 / '
+            '0x09D25238 every frame, and the same answer sets its opacity target +0x798 to 0, else 0xFF. Slot 23 is '
+            '1 while the fade counter +0x7EC runs (not 0xFFFF), or else when 0x09D1DBB0 passes: 0x09AD4360 finds '
+            'nothing, then actions (2,0x19)..(2,0x1D) pass; otherwise +0x794 set, not in action group 5 or actions '
+            '(6,1), (6,2), (1,4), +0x3CF not 2 or 4, not tail cut (+0x2B8 bit 0) with break flag 0, and action id '
+            '+0x324 outside 0x411..0x41D or one of 0x414, 0x418, 0x41D. Its rage test (0x09D1DD24) cannot change '
+            'the answer.'},                         # Chameleos
+    36: {1: 'While enraged (entity+0x638 & 0x20): the class update (em02, vtable slot 29) writes it every frame at '
+            '0x09D1A5C4 / 0x09D1A5D0, and leaves it as it was while +0x298 is 5.'},           # Crimson Fatalis
+    71: {1: 'While HP (+0x2E4) is above trunc(0.2 x max HP +0x41E) and at most trunc(0.5 x max HP): the class '
+            'update (em02, vtable slot 29) writes it every frame at 0x09D1A6A8..0x09D1A6D0.'},  # White Fatalis
+    48: {1: _DAIMYO % '1 while part 5 or part 6 has a break count under 2 (0x09B22610)',
+         2: _DAIMYO % '2 once parts 5 and 6 both have a break count of 2 or more (0x09B22608)'},  # Daimyo
+    86: {1: _DAIMYO % '1 while part 5 or part 6 has a break count under 2 (0x09B22610)',
+         2: _DAIMYO % '2 once parts 5 and 6 both have a break count of 2 or more (0x09B22608)'},  # Plum Daimyo
+    67: {1: 'Once part 2\'s break count is 2 or more: the class update (vtable slot 29) writes it every frame at '
+            '0x09B1F274; the clear at each action change (slot 32, 0x09B26754) is rewritten by the next update.'},
+    87: {1: 'Once part 2\'s break count is 2 or more: the class update (vtable slot 29) writes it every frame at '
+            '0x09B1F274; the clear at each action change (slot 32, 0x09B26754) is rewritten by the next update.'},
+    52: {1: _CONGA},                                # Congalala
+    85: {1: _CONGA},                                # Emerald Congalala
+}
 
 
 # ---- glb helpers (the GU builder's) -------------------------------------------------------------------------------
@@ -248,12 +308,14 @@ def main():
         if rec is None:
             continue
         n = len(d['tables'])
+        missing = [k for k in range(1, n) if k not in TABLE_NOTES.get(s, {})]
+        if missing:
+            sys.exit('%s (species %d): no TABLE_NOTES for table %s' % (e['id'], s, missing))
         rec.update({
             'bin': 'hitzones/%s.bin' % e['id'],
             'tables': [[dict(zip(cols, row)) for row in t] for t in d['tables']],
             'tableNames': ['Default'] + [TABLE_LABELS.get((s, k), 'State %d' % k) for k in range(1, n)],
-            'tableNotes': [''] + ['The table the hit code reads while entity+0x481 = %d (the class sets it in its own '
-                                  'code; the state is not decoded yet). Species record %s +0xAC.' % (k, d['record'])
+            'tableNotes': [''] + ['The table the hit code reads while entity+0x481 = %d. %s' % (k, TABLE_NOTES[s][k])
                                   for k in range(1, n)],
             'capsules': [[c['slot'], c['part'], c['shape'], c['bone'] if c['bone'] is not None else -1,
                           c['bone'] if c['bone'] is not None else -1, game_units(c['radius'])]
