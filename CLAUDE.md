@@ -38,7 +38,16 @@ The game files are read by `C:\MHFU-Extract\tools` (its CLAUDE.md maps DATA.BIN)
   never draws (inferred look, see the comment).
 - Clips are action entries: part k plays slot `e % 100` of stream `2k + e // 100`. A part with no
   clip in an entry borrows the first entry's (Tigrex 24/25 drive the head alone in game).
-- The frame transport is 30 fps (`FRAME` in index.html), the game's logic rate.
+- **Every material alpha-tests at > 0**, as the game's model draw sets the GE (BOOT 0x08861C7C: ATST 0xDBFF0006
+  around 0x0886171C). An opaque material whose map has alpha-0 texels ships `fb` + feat 1 (`Alpha`), the cutout
+  render/material.js applies; without the feat it was drawn solid (black fur cards on 68 monsters).
+- **Colours the game writes at spawn** (vis.json `spawnColour`, vis_emu.py): Cephadrome (its file is Cephalos'
+  byte for byte, coloured 0x656041 by the class pass, game_task 0x09AE6670) and calm Emerald Congalala (0x7A9494).
+  They ship as `cbm.diffuse` (linear, so the screen shows map x byte/255) with a neutral `glob`. Colours the pass
+  copies from spawn-filled entity fields (`colourFromField`: Blangonga/Congalala families +0x7E7, Shen Gaoren,
+  Monoblos) are not applied: the spawn code that fills them is not read yet.
+- Motions are 60 fps: the game adds the motion's step (2.0, at entity+0x80 + 0x40k) to its frame once per
+  30 Hz update (BOOT 0x088638C0). `convert.py` FPS and `FRAME` in index.html are both 60.
 - Names: the game's two lists in f0019; `NAMES` in build_viewer.py overrides where the game repeats
   the base name. Classes and order are the MHFU LookUp app's `monster_order.json`, not ROM data.
 - `SKIP` lists the dummies and duplicates left out; the README says what each is. Never put them on

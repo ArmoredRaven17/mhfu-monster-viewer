@@ -11,7 +11,8 @@ values) and sizes are not decoded yet.
 
 - 82 monsters: every species in the game's Monster List except the five it names "dummy" and two
   duplicates (see below).
-- Each monster's **action entries** as clips, at the game's 30 Hz, with looping and frame stepping.
+- Each monster's **action entries** as clips, at the game's own speed (60 frames a second: a motion steps
+  two frames per 30 Hz game update), with looping and frame stepping.
   The game stores no names for them, so they are numbered as the game numbers them.
 - The game's own textures (TMH banks, 4- and 8-bit palettes), bound per material.
 - **The tail tip is drawn in place.** A monster with a severable tail keeps the tip as a separate
@@ -47,7 +48,7 @@ The script headers are the long reference; `C:\MHFU-Extract\CLAUDE.md` maps the 
 - A monster PAC is: skeleton, PMO model, TMH textures, animation pack, and on some species a second
   small skeleton/model/textures (effects; not shown yet).
 - Clips are baked from the game's keyframes (cubic Hermite, Euler rotations) into glTF quaternion
-  tracks at 30 frames a second, then thinned with `scripts/reduce_keys.py`.
+  tracks at 60 frames a second, then thinned with `scripts/reduce_keys.py`.
 
 ## Left out, and why
 

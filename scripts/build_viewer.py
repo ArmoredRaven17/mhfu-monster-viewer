@@ -64,7 +64,13 @@ SMALL = {
 CLASS_ORDER = ['Lynian', 'Neopteron', 'Herbivore', 'Bird Wyvern', 'Flying Wyvern', 'Piscine Wyvern',
                'Carapaceon', 'Pelagus', 'Elder Dragon']
 STATE = ['opaque', 'blend', 'add', 'revsub']
-FEAT = [{'transp': 'AlphaConstant'}]          # render/material.js: blend by the texture's alpha
+FEAT = [{'transp': 'AlphaConstant'},          # render/material.js: blend by the texture's alpha
+        {'transp': 'Alpha'}]                  # cut out where the texture's alpha is 0 (the GE alpha test)
+FEAT_CUTOUT = 1
+# glob record 0: changes nothing by itself (albedo 1, no emission, no specular, clip 0), so a material that takes
+# it for its cbm colour is drawn as before but for that colour
+GLOB_NEUTRAL = {'albedo': [1.0, 1.0, 1.0, 1.0], 'emission': [0.0, 0.0, 0.0], 'shininess': 0, 'clip': 0,
+                'fresnel': 1.0, 'fresnelSchlickRGB': [1.0, 1.0, 1.0], 'constant': [1.0, 1.0, 1.0, 1.0]}
 
 
 # PART CONTROLS. The game decides what a monster draws in its own code (slot 25 of the species vtable, run
@@ -200,6 +206,19 @@ def main():
         os.makedirs(os.path.join(DOCS, sub), exist_ok=True)
 
     monsters, mats_db, glb_map, notes = [], {}, {}, []
+    cbm = []                                      # materials.json cbm: one record per game-written colour
+
+    def cbm_index(hexrgb):
+        # The GE multiplies in display space; three.js multiplies a linear colour into a linear map and then
+        # encodes to sRGB. So the byte goes in as its linear value, and the screen shows the map x byte/255.
+        def lin(b):
+            c = b / 255
+            return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+        rgb = [round(lin(int(hexrgb[i:i + 2], 16)), 5) for i in (0, 2, 4)]
+        rec = {'diffuse': rgb + [1.0], 'transparency': 1.0, 'reflective': [1.0, 1.0, 1.0]}
+        if rec not in cbm:
+            cbm.append(rec)
+        return cbm.index(rec)
     for folder in sorted(os.listdir(CONV)):
         if not re.fullmatch(r'f\d{4}', folder):
             continue
@@ -234,6 +253,15 @@ def main():
         glb_write(os.path.join(DOCS, glb_rel), js, bin_)
         ref = f'em/{s:03d}'
         glb_map[glb_rel] = ref
+        # THE MATERIAL COLOUR THE GAME WRITES at spawn (vis.json spawnColour, C:\MHFU-Extract\tools\vis_emu.py):
+        # Cephadrome shares Cephalos' file byte for byte and is coloured 0x65 0x60 0x41 by the class's pass. The
+        # GE takes it as the material colour; here it multiplies the map (cbm.diffuse x a neutral glob.albedo,
+        # render/material.js). Per PMO material, so every draw state of it takes the same colour.
+        tints = {}
+        for key, hexrgb in vis_all.get(str(s), {}).get('spawnColour', {}).items():
+            mk = int(key.split('/')[1])
+            assert tints.get(mk, hexrgb) == hexrgb, (s, key, 'one material, two colours')
+            tints[mk] = hexrgb
         mats = {}
         for gm in js.get('materials', []):
             nm = gm['name']
@@ -246,15 +274,23 @@ def main():
             if t is not None and t < len(tex_paths):
                 rec['t'] = {'albedo': t + 1}
                 if blend == 'opaque':
-                    # alpha test: an opaque material whose map has see-through texels (wing membranes,
-                    # manes); the PSP draws those with the GE alpha test, not blending
+                    # THE ALPHA TEST. The model draw (BOOT 0x08861C7C / 0x08861D7C) sets the GE alpha test to
+                    # GREATER 0 (ATST 0xDBFF0006) around every model it draws (0x0886171C) and puts the
+                    # default GEQUAL 0x80 back after, so the game discards a texel of alpha 0 on every
+                    # material, opaque meshes included (wing membranes, manes, fur cards). An opaque
+                    # material whose map has such texels takes the cutout: fb's alpha-test bit plus the
+                    # 'Alpha' feature, which is what render/material.js cuts on (alpha < ALPHA_EPS).
                     im = Image.open(os.path.join(CONV, folder, 'tex', f'{t:02d}.png'))
-                    if im.mode == 'RGBA' and im.getextrema()[3][0] < 128:
+                    if im.mode == 'RGBA' and im.getextrema()[3][0] == 0:
                         rec['fb'] = '00100000'
+                        rec['f'] = FEAT_CUTOUT
             if blend != 'opaque':
                 rec['f'] = 0
             if unlit:
                 rec['cls'] = 'Unlit'
+            if k in tints:
+                rec['g'] = 0
+                rec['c'] = cbm_index(tints[k])
             mats[nm] = rec
         mats_db[ref] = {'tex': tex_paths, 'mats': mats}
 
@@ -299,15 +335,17 @@ def main():
                'PAC/PMO/TMH/animation layouts after MHFU-ModKit\'s docs).',
         'not_rom': 'Monster classes and list order are the MHFU LookUp app\'s (monster_order.json); '
                    'the names of variants the game calls by their base name are the LookUp app\'s too. '
-                   'Clips are the game\'s action entries, baked at its 30 Hz logic rate.',
+                   'Clips are the game\'s action entries, at 60 frames a second (a motion steps 2 frames per 30 Hz update).',
     }
     now = datetime.datetime.now().isoformat(timespec='seconds')
     json.dump({'version': 1, 'generated': now, '_about': about, 'monsters': monsters},
               open(os.path.join(DOCS, 'monsters.json'), 'w'), indent=1)
     json.dump({'_about': 'Per model glb: its textures and, per glTF material name, the albedo (1-based into '
                          'tex), the draw state (index into state), f (feat), fb (alpha-test bit), cls '
-                         '(Unlit for meshes drawn without lighting).',
-               'state': [{'blend': b} for b in STATE], 'feat': FEAT, 'glb': glb_map, 'monsters': mats_db},
+                         '(Unlit for meshes drawn without lighting), g/c (glob/cbm: the material colour the '
+                         'game writes at spawn, cbm.diffuse; glob is neutral).',
+               'state': [{'blend': b} for b in STATE], 'feat': FEAT, 'glob': [GLOB_NEUTRAL], 'cbm': cbm,
+               'glb': glb_map, 'monsters': mats_db},
               open(os.path.join(DOCS, 'materials.json'), 'w'), indent=1)
     print(f'{len(monsters)} monsters')
     for n in notes:

@@ -830,7 +830,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <p>Monster Hunter Freedom Unite and all of its models, textures, animations and data tables are &copy; CAPCOM CO., LTD. All rights reserved. Every asset here was extracted from a personally owned copy of the game (the US release) and is shown for reference only.</p>
 
     <h3>What you are looking at</h3>
-    <p>Each monster is one file in the game: its skeleton, model, textures and animations. The clips are the game's action entries, numbered as the game stores them (the data has no names for them), and play at the game's own 30 frames a second. Some monsters have overlay meshes the game only shows in certain states (rage, glowing parts); the Effects switch shows them. The hit zones are the game's own damage tables and hit capsules; the names of their columns follow the MHFU LookUp app's table. Monster names are the game's own; where the game calls a variant by its base monster's name, the MHFU LookUp app's name is used.</p>
+    <p>Each monster is one file in the game: its skeleton, model, textures and animations. The clips are the game's action entries, numbered as the game stores them (the data has no names for them), and play at the game's own 60 frames a second. Some monsters have overlay meshes the game only shows in certain states (rage, glowing parts); the Effects switch shows them. The hit zones are the game's own damage tables and hit capsules; the names of their columns follow the MHFU LookUp app's table. Monster names are the game's own; where the game calls a variant by its base monster's name, the MHFU LookUp app's name is used.</p>
 
     <h3>File formats</h3>
     <ul class="app-links">
@@ -2615,14 +2615,21 @@ const label = e => (monName(e) || e.id) + (monName(e) ? '' : ' (unnamed)');
 // monster-classes.json; for MHFU the classes and their order are the MHFU LookUp app's (monsters.json
 // `species`, see its _about). Large and Small are kept apart by monsters.json `small`, build_viewer.py's
 // SMALL set (the MHFU Hunting Log's): every Large section comes before every Small one, and a class with
-// both kinds (Bird Wyvern: Velocidrome and Velociprey) is listed under each. A monster keeps its id order
-// inside its class. A monster with no class would come last, under Unlisted, outside both sections.
+// both kinds (Bird Wyvern: Velocidrome and Velociprey) is listed under each. Inside its class a monster takes
+// the LookUp app's place (monsters.json `listRank`), which keeps a family together -- Rathian, Pink Rathian,
+// Gold Rathian, then the Rathalos (Raven, 2026-10-25: "Reorder the list so like monsters are near each other");
+// the id breaks a tie. A monster with no class would come last, under Unlisted, outside both sections.
 // The name filter searches every monster.
-const MONSTERS_BY_ID = MON.monsters.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+const MONSTERS_BY_ID = MON.monsters.slice().sort((a, b) =>
+  ((a.listRank ?? 1e9) - (b.listRank ?? 1e9)) || String(a.id).localeCompare(String(b.id)));
 const SPECIES_ORDER = [...new Set(MONSTERS_BY_ID.filter(e => e.speciesIdx !== null && e.speciesIdx !== undefined)
                                                 .map(e => e.speciesIdx))].sort((a, b) => a - b);
 const speciesName = i => (MONSTERS_BY_ID.find(e => e.speciesIdx === i) || {}).species || ('Species ' + i);
 const sectionOf = e => (e.speciesIdx === null || e.speciesIdx === undefined) ? null : !!e.small;
+// The monster the page opens on, and Reset returns to: the lowest id among the Large ones (Rathian, em001), not the
+// list's first entry, so the list order does not move it.
+const openingMonster = () => MONSTERS_BY_ID.filter(e => sectionOf(e) === false)
+  .sort((a, b) => String(a.id).localeCompare(String(b.id)))[0] || MONSTERS_BY_ID[0];
 function monsterBuckets(){
   const f = (monFilter.value || '').trim().toLowerCase();
   // The monster ON SCREEN always stays in the list, whatever the filter says. Dropping it would re-point
@@ -2645,7 +2652,7 @@ const monTypeSel = document.getElementById('monType');
 function buildMonsterList(){
   const buckets = monsterBuckets();
   if (!buckets.some(b => b.list.some(e => e.id === state.id))){
-    const first = MONSTERS_BY_ID.find(e => sectionOf(e) === false) || MONSTERS_BY_ID[0];
+    const first = openingMonster();
     if (first) state.id = first.id;
   }
   const mine = buckets.find(b => b.list.some(e => e.id === state.id)) || buckets[0];
@@ -3735,9 +3742,10 @@ async function play(){
 function poseRoots(){ return mounted.main ? [mounted.main] : []; }
 
 // ---- animation transport ------------------------------------------------------------------
-// MHFU's motions run at the game's 30 Hz logic rate (the build bakes one key per game frame), so a
-// frame step is 1/30 s. The transport drives the pose driver's action directly, as the Armor Viewer's does.
-const FRAME = 1 / 30;
+// MHFU's motions run at 60 frames a second: the game adds a motion's step (2.0) to its frame once per 30 Hz
+// update (BOOT 0x088638C0), and the build bakes one key per motion frame (C:/MHFU-Extract/tools/convert.py FPS),
+// so a frame step is 1/60 s, as in the MHFU Armor Viewer. The transport drives the pose driver's action directly.
+const FRAME = 1 / 60;
 const animBar = document.getElementById('anim'), animScrub = document.getElementById('animScrub'),
       animFrameEl = document.getElementById('animFrame'), animPlayBtn = document.getElementById('animPlay'),
       animLoopBtn = document.getElementById('animLoop');
@@ -3946,7 +3954,7 @@ function releaseHitZonesLook(){
 document.getElementById('hitZonesPanel').addEventListener('panelopen', holdHitZonesLook);
 document.getElementById('hitZonesPanel').addEventListener('panelclose', releaseHitZonesLook);
 document.getElementById('resetBtn').onclick = async () => {
-  const first = MONSTERS_BY_ID[0];
+  const first = openingMonster();
   Object.assign(state, { id: first ? first.id : '', list: '', clip: '', groups: null, loop: true,
                          tail: false, anchor: false, groundLock: false });
   applyFxPreset('off');                    // Reset names Off, as the MHGU viewers' does
